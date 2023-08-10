@@ -8,19 +8,32 @@ param openai_api_version string
 
 var location = resourceGroup().location
 
-resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
-  name: '${name}-app-${resourceToken}'
-  location: location
-  properties: {
-    reserved: true
+param costOptimised bool = true
+
+var appServiceSkus = {
+  free: {
+    name: 'F1'
+    tier: 'Free'
+    size: 'F1'
+    family: 'F'
+    capacity: 1
   }
-  sku: {
+  premium : {
     name: 'P0v3'
     tier: 'Premium0V3'
     size: 'P0v3'
     family: 'Pv3'
     capacity: 1
   }
+}
+
+resource appServicePlan 'Microsoft.Web/serverfarms@2020-06-01' = {
+  name: '${name}-app-${resourceToken}'
+  location: location
+  properties: {
+    reserved: true
+  }
+  sku: costOptimised ? appServiceSkus.free : appServiceSkus.premium
   kind: 'linux'
 }
 
@@ -31,7 +44,7 @@ resource webApp 'Microsoft.Web/sites@2020-06-01' = {
     serverFarmId: appServicePlan.id
     siteConfig: {
       linuxFxVersion: 'node|18-lts'
-      alwaysOn: true
+      alwaysOn: !costOptimised
       appCommandLine: 'node server.js'
       appSettings: [
         {
@@ -77,6 +90,7 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2023-04-15' = {
   kind: 'GlobalDocumentDB'
   properties: {
     databaseAccountOfferType: 'Standard'
+    enableFreeTier: true
     locations: [
       {
         locationName: location
